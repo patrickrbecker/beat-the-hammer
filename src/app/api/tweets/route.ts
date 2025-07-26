@@ -23,39 +23,6 @@ interface TwitterResponse {
   };
 }
 
-async function fetchTweets(userId: string, bearerToken: string) {
-  const tweetsResponse = await fetch(
-    `https://api.twitter.com/2/users/${userId}/tweets?max_results=10&tweet.fields=created_at,author_id&expansions=author_id&user.fields=username,name`,
-    {
-      headers: {
-        'Authorization': `Bearer ${bearerToken}`,
-        'Content-Type': 'application/json',
-      },
-    }
-  );
-
-  if (!tweetsResponse.ok) {
-    const errorText = await tweetsResponse.text();
-    console.error('Failed to fetch tweets:', tweetsResponse.status, tweetsResponse.statusText, errorText);
-    return NextResponse.json({ 
-      tweets: [], 
-      error: 'Failed to fetch tweets',
-      debug: { status: tweetsResponse.status, message: errorText }
-    });
-  }
-
-  const tweetsData: TwitterResponse = await tweetsResponse.json();
-
-  // Transform the Twitter API response to our format
-  const tweets = tweetsData.data?.map(tweet => ({
-    id: tweet.id,
-    text: tweet.text,
-    created_at: tweet.created_at,
-    author: '@BeatHammer'
-  })) || [];
-
-  return NextResponse.json({ tweets });
-}
 
 export async function GET() {
   try {
@@ -89,9 +56,10 @@ export async function GET() {
       });
     }
 
-    // First, get the user ID for @BeatHammer
-    const userResponse = await fetch(
-      'https://api.twitter.com/2/users/by/username/BeatHammer',
+    // Use Twitter's public tweet search instead of user lookup
+    // This searches for tweets from @BeatHammer without needing user auth
+    const tweetsResponse = await fetch(
+      `https://api.twitter.com/2/tweets/search/recent?query=from:BeatHammer&max_results=10&tweet.fields=created_at,author_id,public_metrics&expansions=author_id&user.fields=username,name`,
       {
         headers: {
           'Authorization': `Bearer ${bearerToken}`,
@@ -100,13 +68,13 @@ export async function GET() {
       }
     );
 
-    if (!userResponse.ok) {
-      const errorText = await userResponse.text();
-      console.error('Failed to fetch user @BeatHammer:', userResponse.status, userResponse.statusText, errorText);
+    if (!tweetsResponse.ok) {
+      const errorText = await tweetsResponse.text();
+      console.error('Failed to search tweets from @BeatHammer:', tweetsResponse.status, tweetsResponse.statusText, errorText);
       
       // Try alternative username (lowercase)
-      const altUserResponse = await fetch(
-        'https://api.twitter.com/2/users/by/username/beathammer',
+      const altTweetsResponse = await fetch(
+        `https://api.twitter.com/2/tweets/search/recent?query=from:beathammer&max_results=10&tweet.fields=created_at,author_id,public_metrics&expansions=author_id&user.fields=username,name`,
         {
           headers: {
             'Authorization': `Bearer ${bearerToken}`,
@@ -115,40 +83,41 @@ export async function GET() {
         }
       );
       
-      if (!altUserResponse.ok) {
-        const altErrorText = await altUserResponse.text();
-        console.error('Alt username @beathammer also failed:', altUserResponse.status, altErrorText);
+      if (!altTweetsResponse.ok) {
+        const altErrorText = await altTweetsResponse.text();
+        console.error('Alt username @beathammer also failed:', altTweetsResponse.status, altErrorText);
         return NextResponse.json({ 
           tweets: [], 
-          error: 'User not found. Account may not exist or may be private.',
+          error: 'No tweets found. Account may not exist, be private, or have no recent tweets.',
           debug: { 
-            primaryStatus: userResponse.status, 
-            altStatus: altUserResponse.status,
+            primaryStatus: tweetsResponse.status, 
+            altStatus: altTweetsResponse.status,
             primaryMessage: errorText,
             altMessage: altErrorText
           }
         });
       }
       
-      const userData = await altUserResponse.json();
-      const userId = userData.data?.id;
-      
-      if (!userId) {
-        return NextResponse.json({ tweets: [], error: 'User ID not found' });
-      }
-      
-      return await fetchTweets(userId, bearerToken);
+      const tweetsData: TwitterResponse = await altTweetsResponse.json();
+      const tweets = tweetsData.data?.map(tweet => ({
+        id: tweet.id,
+        text: tweet.text,
+        created_at: tweet.created_at,
+        author: '@BeatHammer'
+      })) || [];
+
+      return NextResponse.json({ tweets });
     }
 
-    const userData = await userResponse.json();
-    const userId = userData.data?.id;
+    const tweetsData: TwitterResponse = await tweetsResponse.json();
+    const tweets = tweetsData.data?.map(tweet => ({
+      id: tweet.id,
+      text: tweet.text,
+      created_at: tweet.created_at,
+      author: '@BeatHammer'
+    })) || [];
 
-    if (!userId) {
-      console.error('User ID not found for @beathammer');
-      return NextResponse.json({ tweets: [], error: 'User not found' });
-    }
-
-    return await fetchTweets(userId, bearerToken);
+    return NextResponse.json({ tweets });
 
   } catch (error) {
     console.error('Error fetching tweets:', error);
