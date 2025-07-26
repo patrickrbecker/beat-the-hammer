@@ -3,11 +3,21 @@
 import { useEffect, useState } from 'react';
 import { Twitter, Heart, MessageCircle, Repeat, ExternalLink } from 'lucide-react';
 
+interface MediaAttachment {
+  media_key: string;
+  type: 'photo' | 'video' | 'animated_gif';
+  url?: string;
+  preview_image_url?: string;
+  width?: number;
+  height?: number;
+}
+
 interface Tweet {
   id: string;
   text: string;
   created_at: string;
   author: string;
+  media?: MediaAttachment[];
 }
 
 export default function TweetFeed() {
@@ -99,6 +109,59 @@ export default function TweetFeed() {
                   <span className="text-slate-400 text-sm">{formatDate(tweet.created_at)}</span>
                 </div>
                 <p className="text-white leading-relaxed mb-3">{tweet.text}</p>
+                
+                {/* Media Attachments */}
+                {tweet.media && tweet.media.length > 0 && (
+                  <div className="mb-3">
+                    <div className="grid gap-2" style={{
+                      gridTemplateColumns: tweet.media.length === 1 ? '1fr' : 
+                                         tweet.media.length === 2 ? '1fr 1fr' :
+                                         'repeat(2, 1fr)'
+                    }}>
+                      {tweet.media.map((media) => (
+                        <div key={media.media_key} className="relative">
+                          {media.type === 'photo' && media.url && (
+                            <img
+                              src={media.url}
+                              alt="Tweet attachment"
+                              className="w-full h-auto rounded-lg border border-slate-600 max-h-96 object-contain bg-slate-900"
+                              loading="lazy"
+                            />
+                          )}
+                          {media.type === 'video' && media.preview_image_url && (
+                            <div className="relative">
+                              <img
+                                src={media.preview_image_url}
+                                alt="Video preview"
+                                className="w-full h-auto rounded-lg border border-slate-600 max-h-96 object-contain bg-slate-900"
+                              />
+                              <div className="absolute inset-0 flex items-center justify-center">
+                                <div className="bg-black/50 rounded-full p-3">
+                                  <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 24 24">
+                                    <path d="M8 5v14l11-7z"/>
+                                  </svg>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                          {media.type === 'animated_gif' && media.preview_image_url && (
+                            <div className="relative">
+                              <img
+                                src={media.preview_image_url}
+                                alt="GIF preview"
+                                className="w-full h-auto rounded-lg border border-slate-600 max-h-96 object-contain bg-slate-900"
+                              />
+                              <div className="absolute top-2 left-2">
+                                <span className="bg-black/70 text-white text-xs px-2 py-1 rounded">GIF</span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
                 <div className="flex items-center gap-6 text-slate-400">
                   <button className="flex items-center gap-2 hover:text-blue-400 transition-colors">
                     <MessageCircle className="w-4 h-4" />

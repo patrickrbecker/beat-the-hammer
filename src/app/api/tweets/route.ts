@@ -5,6 +5,18 @@ interface TwitterTweet {
   text: string;
   created_at: string;
   author_id: string;
+  attachments?: {
+    media_keys?: string[];
+  };
+}
+
+interface TwitterMedia {
+  media_key: string;
+  type: 'photo' | 'video' | 'animated_gif';
+  url?: string;
+  preview_image_url?: string;
+  width?: number;
+  height?: number;
 }
 
 interface TwitterUser {
@@ -17,6 +29,7 @@ interface TwitterResponse {
   data?: TwitterTweet[];
   includes?: {
     users?: TwitterUser[];
+    media?: TwitterMedia[];
   };
   meta?: {
     result_count: number;
@@ -56,10 +69,10 @@ export async function GET() {
       });
     }
 
-    // Use Twitter's public tweet search instead of user lookup
-    // This searches for tweets from @BeatHammer without needing user auth
+    // Use Twitter's public tweet search with media attachments
+    // This searches for tweets from @BeatHammer and includes images/videos
     const tweetsResponse = await fetch(
-      `https://api.twitter.com/2/tweets/search/recent?query=from:BeatHammer&max_results=10&tweet.fields=created_at,author_id,public_metrics&expansions=author_id&user.fields=username,name`,
+      `https://api.twitter.com/2/tweets/search/recent?query=from:BeatHammer&max_results=10&tweet.fields=created_at,author_id,public_metrics,attachments&expansions=author_id,attachments.media_keys&user.fields=username,name&media.fields=url,preview_image_url,type,width,height`,
       {
         headers: {
           'Authorization': `Bearer ${bearerToken}`,
@@ -74,7 +87,7 @@ export async function GET() {
       
       // Try alternative username (lowercase)
       const altTweetsResponse = await fetch(
-        `https://api.twitter.com/2/tweets/search/recent?query=from:beathammer&max_results=10&tweet.fields=created_at,author_id,public_metrics&expansions=author_id&user.fields=username,name`,
+        `https://api.twitter.com/2/tweets/search/recent?query=from:beathammer&max_results=10&tweet.fields=created_at,author_id,public_metrics,attachments&expansions=author_id,attachments.media_keys&user.fields=username,name&media.fields=url,preview_image_url,type,width,height`,
         {
           headers: {
             'Authorization': `Bearer ${bearerToken}`,
@@ -99,23 +112,39 @@ export async function GET() {
       }
       
       const tweetsData: TwitterResponse = await altTweetsResponse.json();
-      const tweets = tweetsData.data?.map(tweet => ({
-        id: tweet.id,
-        text: tweet.text,
-        created_at: tweet.created_at,
-        author: '@BeatHammer'
-      })) || [];
+      const tweets = tweetsData.data?.map(tweet => {
+        // Find media attachments for this tweet
+        const mediaAttachments = tweet.attachments?.media_keys?.map(mediaKey => {
+          return tweetsData.includes?.media?.find(media => media.media_key === mediaKey);
+        }).filter(Boolean) || [];
+
+        return {
+          id: tweet.id,
+          text: tweet.text,
+          created_at: tweet.created_at,
+          author: '@BeatHammer',
+          media: mediaAttachments
+        };
+      }) || [];
 
       return NextResponse.json({ tweets });
     }
 
     const tweetsData: TwitterResponse = await tweetsResponse.json();
-    const tweets = tweetsData.data?.map(tweet => ({
-      id: tweet.id,
-      text: tweet.text,
-      created_at: tweet.created_at,
-      author: '@BeatHammer'
-    })) || [];
+    const tweets = tweetsData.data?.map(tweet => {
+      // Find media attachments for this tweet
+      const mediaAttachments = tweet.attachments?.media_keys?.map(mediaKey => {
+        return tweetsData.includes?.media?.find(media => media.media_key === mediaKey);
+      }).filter(Boolean) || [];
+
+      return {
+        id: tweet.id,
+        text: tweet.text,
+        created_at: tweet.created_at,
+        author: '@BeatHammer',
+        media: mediaAttachments
+      };
+    }) || [];
 
     return NextResponse.json({ tweets });
 
