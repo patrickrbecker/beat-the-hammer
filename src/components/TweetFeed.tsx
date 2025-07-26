@@ -65,7 +65,7 @@ export default function TweetFeed() {
             Unable to load tweets at the moment. Visit the profile directly.
           </p>
           <a
-            href="https://x.com/beathammer"
+            href="https://x.com/BeatHammer"
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
@@ -121,7 +121,7 @@ export default function TweetFeed() {
       
       <div className="mt-6 text-center">
         <a
-          href="https://x.com/beathammer"
+          href="https://x.com/BeatHammer"
           target="_blank"
           rel="noopener noreferrer"
           className="inline-flex items-center gap-2 text-blue-400 hover:text-blue-300 transition-colors"

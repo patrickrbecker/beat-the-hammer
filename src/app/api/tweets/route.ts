@@ -51,7 +51,7 @@ async function fetchTweets(userId: string, bearerToken: string) {
     id: tweet.id,
     text: tweet.text,
     created_at: tweet.created_at,
-    author: '@beathammer'
+    author: '@BeatHammer'
   })) || [];
 
   return NextResponse.json({ tweets });
@@ -89,9 +89,9 @@ export async function GET() {
       });
     }
 
-    // First, get the user ID for @beathammer
+    // First, get the user ID for @BeatHammer
     const userResponse = await fetch(
-      'https://api.twitter.com/2/users/by/username/beathammer',
+      'https://api.twitter.com/2/users/by/username/BeatHammer',
       {
         headers: {
           'Authorization': `Bearer ${bearerToken}`,
@@ -102,11 +102,11 @@ export async function GET() {
 
     if (!userResponse.ok) {
       const errorText = await userResponse.text();
-      console.error('Failed to fetch user:', userResponse.status, userResponse.statusText, errorText);
+      console.error('Failed to fetch user @BeatHammer:', userResponse.status, userResponse.statusText, errorText);
       
-      // Try alternative usernames
+      // Try alternative username (lowercase)
       const altUserResponse = await fetch(
-        'https://api.twitter.com/2/users/by/username/BeatHammer',
+        'https://api.twitter.com/2/users/by/username/beathammer',
         {
           headers: {
             'Authorization': `Bearer ${bearerToken}`,
@@ -116,14 +116,16 @@ export async function GET() {
       );
       
       if (!altUserResponse.ok) {
-        console.error('Alt username also failed:', altUserResponse.status);
+        const altErrorText = await altUserResponse.text();
+        console.error('Alt username @beathammer also failed:', altUserResponse.status, altErrorText);
         return NextResponse.json({ 
           tweets: [], 
           error: 'User not found. Account may not exist or may be private.',
           debug: { 
-            status: userResponse.status, 
+            primaryStatus: userResponse.status, 
             altStatus: altUserResponse.status,
-            message: errorText 
+            primaryMessage: errorText,
+            altMessage: altErrorText
           }
         });
       }

@@ -33,7 +33,7 @@ export default function Home() {
                 Get real-time updates directly from @BeatHammer
               </p>
               <a
-                href="https://x.com/beathammer"
+                href="https://x.com/BeatHammer"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 bg-white text-blue-600 px-6 py-3 rounded-lg font-bold hover:bg-blue-50 transition-colors"
@@ -47,7 +47,7 @@ export default function Home() {
             {/* Quick Links */}
             <div className="space-y-4">
               <a
-                href="https://x.com/beathammer"
+                href="https://x.com/BeatHammer"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="block bg-slate-800/50 rounded-lg p-4 hover:bg-slate-800/70 transition-colors group"
@@ -64,7 +64,7 @@ export default function Home() {
               </a>
 
               <a
-                href="https://x.com/search?q=from%3Abeathammer&src=typed_query&f=live"
+                href="https://x.com/search?q=from%3ABeatHammer&src=typed_query&f=live"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="block bg-slate-800/50 rounded-lg p-4 hover:bg-slate-800/70 transition-colors group"
