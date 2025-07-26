@@ -11,9 +11,9 @@ export async function GET() {
       });
     }
 
-    // Test 1: Check if our Bearer Token works at all
+    // Test 1: Check if our Bearer Token works with search endpoint
     const testResponse = await fetch(
-      'https://api.twitter.com/2/users/me',
+      'https://api.twitter.com/2/tweets/search/recent?query=from:BeatHammer&max_results=1',
       {
         headers: {
           'Authorization': `Bearer ${bearerToken}`,
@@ -33,9 +33,9 @@ export async function GET() {
       testResult.error = errorText;
     }
 
-    // Test 2: Try to find the BeatHammer user
+    // Test 2: Search for BeatHammer tweets (same as main API)
     const userResponse = await fetch(
-      'https://api.twitter.com/2/users/by/username/BeatHammer',
+      'https://api.twitter.com/2/tweets/search/recent?query=from:BeatHammer&max_results=3&tweet.fields=created_at,author_id,attachments&expansions=author_id,attachments.media_keys&user.fields=username,name&media.fields=url,preview_image_url,type',
       {
         headers: {
           'Authorization': `Bearer ${bearerToken}`,
@@ -58,9 +58,9 @@ export async function GET() {
       userResult.error = errorText;
     }
 
-    // Test 3: Try lowercase version
+    // Test 3: Try lowercase version search
     const userResponse2 = await fetch(
-      'https://api.twitter.com/2/users/by/username/beathammer',
+      'https://api.twitter.com/2/tweets/search/recent?query=from:beathammer&max_results=3&tweet.fields=created_at,author_id,attachments&expansions=author_id,attachments.media_keys&user.fields=username,name&media.fields=url,preview_image_url,type',
       {
         headers: {
           'Authorization': `Bearer ${bearerToken}`,
@@ -85,9 +85,9 @@ export async function GET() {
 
     return NextResponse.json({
       hasToken: true,
-      tokenTest: testResult,
-      userLookupBeatHammer: userResult,
-      userLookupbeathammer: userResult2,
+      searchTest: testResult,
+      searchBeatHammer: userResult,
+      searchbeathammer: userResult2,
       timestamp: new Date().toISOString()
     });
 
