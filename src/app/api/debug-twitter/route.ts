@@ -13,7 +13,7 @@ export async function GET() {
 
     // Test 1: Check if our Bearer Token works with search endpoint
     const testResponse = await fetch(
-      'https://api.twitter.com/2/tweets/search/recent?query=from:BeatHammer&max_results=1',
+      'https://api.twitter.com/2/tweets/search/recent?query=from:BeatHammer&max_results=10',
       {
         headers: {
           'Authorization': `Bearer ${bearerToken}`,
