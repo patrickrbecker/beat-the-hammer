@@ -75,7 +75,7 @@ export async function GET() {
     }
 
     // Setup OAuth 1.0a
-    const oauth = OAuth({
+    const oauth = new OAuth({
       consumer: { key: apiKey, secret: apiSecret },
       signature_method: 'HMAC-SHA1',
       hash_function(base_string, key) {
