@@ -32,7 +32,7 @@ export async function GET() {
         cached: true,
         cacheHit: true 
       });
-      response.headers.set('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=600');
+      response.headers.set('Cache-Control', 'public, s-maxage=3600, stale-while-revalidate=7200');
       return response;
     }
 
@@ -117,11 +117,11 @@ export async function GET() {
         };
       }) || [];
 
-      // Cache the successful result for 10 minutes
-      setCachedData(cacheKey, tweets, 10);
+      // Cache the successful result for 1 hour (tweets only come Friday mornings)
+      setCachedData(cacheKey, tweets, 60);
 
       const response = NextResponse.json({ tweets, oauth: true, cached: false });
-      response.headers.set('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=600');
+      response.headers.set('Cache-Control', 'public, s-maxage=3600, stale-while-revalidate=7200');
       return response;
 
     } catch (twitterError: unknown) {
