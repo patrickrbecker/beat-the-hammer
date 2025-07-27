@@ -35,7 +35,7 @@ export async function GET() {
       // Check specifically for media
       result.hasMedia = !!data.includes?.media;
       result.mediaCount = data.includes?.media?.length || 0;
-      result.tweetsWithAttachments = data.data?.filter((tweet: any) => tweet.attachments?.media_keys?.length > 0).length || 0;
+      result.tweetsWithAttachments = data.data?.filter((tweet: { attachments?: { media_keys?: string[] } }) => tweet.attachments?.media_keys?.length && tweet.attachments.media_keys.length > 0).length || 0;
       
     } else {
       const errorText = await tweetsResponse.text();
