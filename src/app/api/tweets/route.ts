@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { TwitterApi } from 'twitter-api-v2';
 import { getCachedData, setCachedData } from '@/lib/cache';
+import { getLastSuccessfulTweets, saveSuccessfulTweets, getCacheAge } from '@/lib/persistent-cache';
 
 interface MediaAttachment {
   media_key: string;
@@ -119,6 +120,9 @@ export async function GET() {
 
       // Cache the successful result for 1 hour (tweets only come Friday mornings)
       setCachedData(cacheKey, tweets, 60);
+      
+      // Also save to persistent storage for rate limit fallbacks
+      saveSuccessfulTweets(tweets);
 
       const response = NextResponse.json({ tweets, oauth: true, cached: false });
       response.headers.set('Cache-Control', 'public, s-maxage=3600, stale-while-revalidate=7200');
@@ -165,36 +169,46 @@ export async function GET() {
           };
         }) || [];
 
-        // Cache the successful result for 10 minutes
-        setCachedData(cacheKey, tweets, 10);
+        // Cache the successful result for 1 hour (tweets only come Friday mornings)
+        setCachedData(cacheKey, tweets, 60);
+        
+        // Also save to persistent storage for rate limit fallbacks
+        saveSuccessfulTweets(tweets);
 
         return NextResponse.json({ tweets, oauth: true, cached: false });
 
       } catch (altError: unknown) {
         console.error('Both username attempts failed:', altError);
         
-        // If rate limited, return demo content instead of empty tweets
+        // If rate limited, return last successful tweets instead of empty tweets
         const isRateLimited = String(twitterError).includes('429') || String(altError).includes('429');
         if (isRateLimited) {
+          const lastTweets = getLastSuccessfulTweets();
+          if (lastTweets && lastTweets.length > 0) {
+            const cacheAgeHours = Math.round(getCacheAge() / (1000 * 60 * 60));
+            return NextResponse.json({ 
+              tweets: lastTweets, 
+              rateLimited: true,
+              fromCache: true,
+              cacheAgeHours,
+              message: `Showing last successful tweets (${cacheAgeHours}h ago)`
+            });
+          }
+          
+          // Fallback to demo only if no cached tweets exist
           return NextResponse.json({ 
             tweets: [
               {
                 id: 'demo-1',
-                text: 'Beat the Hammer Game #47 - Another challenger falls! 🏆 The streak continues. Can anyone beat The Hammer? #BeatTheHammer',
+                text: 'Beat the Hammer - Latest game results will appear here when available',
                 created_at: new Date().toISOString(),
-                author: '@BeatHammer',
-                media: []
-              },
-              {
-                id: 'demo-2',
-                text: 'Friday morning showdown incoming! 🔨 New challenger thinks they have what it takes. We shall see...',
-                created_at: new Date(Date.now() - 3600000).toISOString(),
                 author: '@BeatHammer',
                 media: []
               }
             ], 
             rateLimited: true,
-            demo: true
+            demo: true,
+            message: 'Demo content - real tweets will load when rate limits reset'
           });
         }
         
