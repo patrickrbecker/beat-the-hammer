@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
-import OAuth from 'oauth-1.0a';
-import crypto from 'crypto';
+import { TwitterApi } from 'twitter-api-v2';
 
 export async function GET() {
   try {
@@ -16,70 +15,59 @@ export async function GET() {
       });
     }
 
-    const oauth = new OAuth({
-      consumer: { key: apiKey, secret: apiSecret },
-      signature_method: 'HMAC-SHA1',
-      hash_function(base_string, key) {
-        return crypto
-          .createHmac('sha1', key)
-          .update(base_string)
-          .digest('base64')
-      },
+    // Initialize Twitter API v2 client with OAuth 1.0a
+    const twitterClient = new TwitterApi({
+      appKey: apiKey,
+      appSecret: apiSecret,
+      accessToken: accessToken,
+      accessSecret: accessTokenSecret,
     });
 
-    const url = 'https://api.twitter.com/2/tweets/search/recent?query=from:BeatHammer&max_results=5&tweet.fields=created_at,author_id,public_metrics,attachments&expansions=author_id,attachments.media_keys&user.fields=username,name&media.fields=url,preview_image_url,type,width,height';
+    try {
+      // Search for tweets from @BeatHammer with media expansions
+      const tweetsData = await twitterClient.v2.search('from:BeatHammer', {
+        max_results: 5,
+        'tweet.fields': ['created_at', 'author_id', 'public_metrics', 'attachments'],
+        expansions: ['author_id', 'attachments.media_keys'],
+        'user.fields': ['username', 'name'],
+        'media.fields': ['url', 'preview_image_url', 'type', 'width', 'height'],
+      });
 
-    const requestData = {
-      url: url,
-      method: 'GET',
-    };
-
-    const authHeader = oauth.toHeader(oauth.authorize(requestData, {
-      key: accessToken,
-      secret: accessTokenSecret,
-    }));
-
-    const tweetsResponse = await fetch(url, {
-      headers: {
-        ...authHeader,
-        'Content-Type': 'application/json',
-      },
-    });
-
-    const result = {
-      status: tweetsResponse.status,
-      statusText: tweetsResponse.statusText,
-      ok: tweetsResponse.ok,
-      hasCredentials: true,
-    };
-
-    if (tweetsResponse.ok) {
-      const data = await tweetsResponse.json();
-      
       return NextResponse.json({
-        ...result,
-        data: data,
-        debug: {
-          hasData: !!data.data,
-          tweetCount: data.data?.length || 0,
-          hasIncludes: !!data.includes,
-          hasMedia: !!data.includes?.media,
-          mediaCount: data.includes?.media?.length || 0,
-          tweetsWithAttachments: data.data?.filter((tweet: { attachments?: { media_keys?: string[] } }) => 
+        status: 'success',
+        hasCredentials: true,
+        library: 'twitter-api-v2',
+        data: {
+          tweetCount: tweetsData.data.data?.length || 0,
+          hasIncludes: !!tweetsData.includes,
+          hasMedia: !!tweetsData.includes?.media,
+          mediaCount: tweetsData.includes?.media?.length || 0,
+          tweetsWithAttachments: tweetsData.data.data?.filter(tweet => 
             tweet.attachments?.media_keys?.length && tweet.attachments.media_keys.length > 0
           ).length || 0,
-          firstTweetHasAttachments: data.data?.[0]?.attachments?.media_keys?.length > 0,
-          allMediaKeys: data.data?.map((tweet: { attachments?: { media_keys?: string[] } }) => 
-            tweet.attachments?.media_keys || []
-          ).flat(),
+          firstTweet: tweetsData.data.data?.[0] ? {
+            id: tweetsData.data.data[0].id,
+            text: tweetsData.data.data[0].text?.substring(0, 100) + '...',
+            hasAttachments: !!tweetsData.data.data[0].attachments?.media_keys?.length,
+            mediaKeys: tweetsData.data.data[0].attachments?.media_keys || [],
+          } : null,
+          mediaItems: tweetsData.includes?.media?.map(media => ({
+            media_key: media.media_key,
+            type: media.type,
+            hasUrl: !!media.url,
+            hasPreviewUrl: !!media.preview_image_url,
+          })) || [],
         },
         timestamp: new Date().toISOString()
       });
-    } else {
-      const errorText = await tweetsResponse.text();
+
+    } catch (twitterError: any) {
       return NextResponse.json({
-        ...result,
-        error: errorText,
+        status: 'error',
+        hasCredentials: true,
+        library: 'twitter-api-v2',
+        error: twitterError.message || twitterError,
+        errorCode: twitterError.code,
         timestamp: new Date().toISOString()
       });
     }
