@@ -21,7 +21,12 @@ export default function Home() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Left Column - Call to Action & Links */}
+          {/* Left Column - Tweet Feed */}
+          <div>
+            <TweetFeed />
+          </div>
+
+          {/* Right Column - Call to Action & Links */}
           <div className="space-y-6">
             {/* Main Call to Action */}
             <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-2xl p-6 text-center">
@@ -91,11 +96,6 @@ export default function Home() {
                 the Beat the Hammer games.
               </p>
             </div>
-          </div>
-
-          {/* Right Column - Tweet Feed */}
-          <div>
-            <TweetFeed />
           </div>
         </div>
       </div>
