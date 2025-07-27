@@ -70,3 +70,4 @@ The app uses the official Twitter Widgets API to embed the live feed from @BeatH
 ## License
 
 MIT License - feel free to use and modify as needed.
+# Force rebuild Sat Jul 26 20:48:20 EDT 2025
