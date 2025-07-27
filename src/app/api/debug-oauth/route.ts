@@ -67,7 +67,7 @@ export async function GET() {
         hasCredentials: true,
         library: 'twitter-api-v2',
         error: twitterError instanceof Error ? twitterError.message : String(twitterError),
-        errorCode: twitterError instanceof Error && 'code' in twitterError ? (twitterError as any).code : undefined,
+        errorCode: twitterError instanceof Error && 'code' in twitterError ? (twitterError as Error & { code?: string }).code : undefined,
         timestamp: new Date().toISOString()
       });
     }
