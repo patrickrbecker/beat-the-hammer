@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { TwitterApi } from 'twitter-api-v2';
+import { getCachedData, setCachedData } from '@/lib/cache';
 
 interface MediaAttachment {
   media_key: string;
@@ -20,6 +21,21 @@ interface Tweet {
 
 export async function GET() {
   try {
+    // Check cache first
+    const cacheKey = 'beathammer_tweets';
+    const cachedTweets = getCachedData(cacheKey);
+    
+    if (cachedTweets) {
+      const response = NextResponse.json({ 
+        tweets: cachedTweets, 
+        oauth: true, 
+        cached: true,
+        cacheHit: true 
+      });
+      response.headers.set('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=600');
+      return response;
+    }
+
     // Get OAuth 1.0a credentials
     const apiKey = process.env.TWITTER_API_KEY;
     const apiSecret = process.env.TWITTER_API_SECRET;
@@ -101,7 +117,12 @@ export async function GET() {
         };
       }) || [];
 
-      return NextResponse.json({ tweets, oauth: true });
+      // Cache the successful result for 10 minutes
+      setCachedData(cacheKey, tweets, 10);
+
+      const response = NextResponse.json({ tweets, oauth: true, cached: false });
+      response.headers.set('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=600');
+      return response;
 
     } catch (twitterError: unknown) {
       console.error('Twitter API error:', twitterError);
@@ -144,7 +165,10 @@ export async function GET() {
           };
         }) || [];
 
-        return NextResponse.json({ tweets, oauth: true });
+        // Cache the successful result for 10 minutes
+        setCachedData(cacheKey, tweets, 10);
+
+        return NextResponse.json({ tweets, oauth: true, cached: false });
 
       } catch (altError: unknown) {
         console.error('Both username attempts failed:', altError);
