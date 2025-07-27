@@ -172,6 +172,32 @@ export async function GET() {
 
       } catch (altError: unknown) {
         console.error('Both username attempts failed:', altError);
+        
+        // If rate limited, return demo content instead of empty tweets
+        const isRateLimited = String(twitterError).includes('429') || String(altError).includes('429');
+        if (isRateLimited) {
+          return NextResponse.json({ 
+            tweets: [
+              {
+                id: 'demo-1',
+                text: 'Beat the Hammer Game #47 - Another challenger falls! 🏆 The streak continues. Can anyone beat The Hammer? #BeatTheHammer',
+                created_at: new Date().toISOString(),
+                author: '@BeatHammer',
+                media: []
+              },
+              {
+                id: 'demo-2',
+                text: 'Friday morning showdown incoming! 🔨 New challenger thinks they have what it takes. We shall see...',
+                created_at: new Date(Date.now() - 3600000).toISOString(),
+                author: '@BeatHammer',
+                media: []
+              }
+            ], 
+            rateLimited: true,
+            demo: true
+          });
+        }
+        
         return NextResponse.json({ 
           tweets: [], 
           error: 'No tweets found for either @BeatHammer or @beathammer',
