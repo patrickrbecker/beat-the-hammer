@@ -1,18 +1,7 @@
 import { NextResponse } from 'next/server';
-import OAuth from 'oauth-1.0a';
-import crypto from 'crypto';
+import { TwitterApi } from 'twitter-api-v2';
 
-interface TwitterTweet {
-  id: string;
-  text: string;
-  created_at: string;
-  author_id: string;
-  attachments?: {
-    media_keys?: string[];
-  };
-}
-
-interface TwitterMedia {
+interface MediaAttachment {
   media_key: string;
   type: 'photo' | 'video' | 'animated_gif';
   url?: string;
@@ -21,21 +10,12 @@ interface TwitterMedia {
   height?: number;
 }
 
-interface TwitterUser {
+interface Tweet {
   id: string;
-  username: string;
-  name: string;
-}
-
-interface TwitterResponse {
-  data?: TwitterTweet[];
-  includes?: {
-    users?: TwitterUser[];
-    media?: TwitterMedia[];
-  };
-  meta?: {
-    result_count: number;
-  };
+  text: string;
+  created_at: string;
+  author: string;
+  media?: MediaAttachment[];
 }
 
 export async function GET() {
@@ -48,7 +28,6 @@ export async function GET() {
     
     if (!apiKey || !apiSecret || !accessToken || !accessTokenSecret) {
       console.error('Twitter OAuth credentials not found');
-      // Return demo tweets if no credentials
       return NextResponse.json({ 
         tweets: [
           {
@@ -74,116 +53,114 @@ export async function GET() {
       });
     }
 
-    // Setup OAuth 1.0a
-    const oauth = new OAuth({
-      consumer: { key: apiKey, secret: apiSecret },
-      signature_method: 'HMAC-SHA1',
-      hash_function(base_string, key) {
-        return crypto
-          .createHmac('sha1', key)
-          .update(base_string)
-          .digest('base64')
-      },
+    // Initialize Twitter API v2 client with OAuth 1.0a
+    const twitterClient = new TwitterApi({
+      appKey: apiKey,
+      appSecret: apiSecret,
+      accessToken: accessToken,
+      accessSecret: accessTokenSecret,
     });
 
-    const url = 'https://api.twitter.com/2/tweets/search/recent?query=from:BeatHammer&max_results=10&tweet.fields=created_at,author_id,public_metrics,attachments&expansions=author_id,attachments.media_keys&user.fields=username,name&media.fields=url,preview_image_url,type,width,height';
-
-    const requestData = {
-      url: url,
-      method: 'GET',
-    };
-
-    const authHeader = oauth.toHeader(oauth.authorize(requestData, {
-      key: accessToken,
-      secret: accessTokenSecret,
-    }));
-
-    // Use Twitter's public tweet search with OAuth 1.0a for media access
-    const tweetsResponse = await fetch(url, {
-      headers: {
-        ...authHeader,
-        'Content-Type': 'application/json',
-      },
-    });
-
-    if (!tweetsResponse.ok) {
-      const errorText = await tweetsResponse.text();
-      console.error('Failed to search tweets from @BeatHammer with OAuth:', tweetsResponse.status, tweetsResponse.statusText, errorText);
-      
-      // Try alternative username (lowercase)
-      const altUrl = 'https://api.twitter.com/2/tweets/search/recent?query=from:beathammer&max_results=10&tweet.fields=created_at,author_id,public_metrics,attachments&expansions=author_id,attachments.media_keys&user.fields=username,name&media.fields=url,preview_image_url,type,width,height';
-      
-      const altRequestData = {
-        url: altUrl,
-        method: 'GET',
-      };
-
-      const altAuthHeader = oauth.toHeader(oauth.authorize(altRequestData, {
-        key: accessToken,
-        secret: accessTokenSecret,
-      }));
-
-      const altTweetsResponse = await fetch(altUrl, {
-        headers: {
-          ...altAuthHeader,
-          'Content-Type': 'application/json',
-        },
+    try {
+      // Search for tweets from @BeatHammer with media expansions
+      const tweetsData = await twitterClient.v2.search('from:BeatHammer', {
+        max_results: 10,
+        'tweet.fields': ['created_at', 'author_id', 'public_metrics', 'attachments'],
+        expansions: ['author_id', 'attachments.media_keys'],
+        'user.fields': ['username', 'name'],
+        'media.fields': ['url', 'preview_image_url', 'type', 'width', 'height'],
       });
-      
-      if (!altTweetsResponse.ok) {
-        const altErrorText = await altTweetsResponse.text();
-        console.error('Alt username @beathammer also failed with OAuth:', altTweetsResponse.status, altErrorText);
-        return NextResponse.json({ 
-          tweets: [], 
-          error: 'No tweets found. Account may not exist, be private, or have no recent tweets.',
-          debug: { 
-            primaryStatus: tweetsResponse.status, 
-            altStatus: altTweetsResponse.status,
-            primaryMessage: errorText,
-            altMessage: altErrorText
-          }
-        });
-      }
-      
-      const tweetsData: TwitterResponse = await altTweetsResponse.json();
-      const tweets = tweetsData.data?.map(tweet => {
+
+      // Transform the response to match our interface
+      const tweets: Tweet[] = tweetsData.data.data?.map(tweet => {
         // Find media attachments for this tweet
-        const mediaAttachments = tweet.attachments?.media_keys?.map(mediaKey => {
-          return tweetsData.includes?.media?.find(media => media.media_key === mediaKey);
-        }).filter(Boolean) || [];
+        const mediaAttachments: MediaAttachment[] = [];
+        
+        if (tweet.attachments?.media_keys && tweetsData.includes?.media) {
+          for (const mediaKey of tweet.attachments.media_keys) {
+            const media = tweetsData.includes.media.find(m => m.media_key === mediaKey);
+            if (media) {
+              mediaAttachments.push({
+                media_key: media.media_key,
+                type: media.type as 'photo' | 'video' | 'animated_gif',
+                url: media.url,
+                preview_image_url: media.preview_image_url,
+                width: media.width,
+                height: media.height,
+              });
+            }
+          }
+        }
 
         return {
           id: tweet.id,
           text: tweet.text,
-          created_at: tweet.created_at,
+          created_at: tweet.created_at || new Date().toISOString(),
           author: '@BeatHammer',
-          media: mediaAttachments
+          media: mediaAttachments,
         };
       }) || [];
 
       return NextResponse.json({ tweets, oauth: true });
+
+    } catch (twitterError: any) {
+      console.error('Twitter API error:', twitterError);
+      
+      // Try alternative username (lowercase) if the first attempt fails
+      try {
+        const altTweetsData = await twitterClient.v2.search('from:beathammer', {
+          max_results: 10,
+          'tweet.fields': ['created_at', 'author_id', 'public_metrics', 'attachments'],
+          expansions: ['author_id', 'attachments.media_keys'],
+          'user.fields': ['username', 'name'],
+          'media.fields': ['url', 'preview_image_url', 'type', 'width', 'height'],
+        });
+
+        const tweets: Tweet[] = altTweetsData.data.data?.map(tweet => {
+          const mediaAttachments: MediaAttachment[] = [];
+          
+          if (tweet.attachments?.media_keys && altTweetsData.includes?.media) {
+            for (const mediaKey of tweet.attachments.media_keys) {
+              const media = altTweetsData.includes.media.find(m => m.media_key === mediaKey);
+              if (media) {
+                mediaAttachments.push({
+                  media_key: media.media_key,
+                  type: media.type as 'photo' | 'video' | 'animated_gif',
+                  url: media.url,
+                  preview_image_url: media.preview_image_url,
+                  width: media.width,
+                  height: media.height,
+                });
+              }
+            }
+          }
+
+          return {
+            id: tweet.id,
+            text: tweet.text,
+            created_at: tweet.created_at || new Date().toISOString(),
+            author: '@BeatHammer',
+            media: mediaAttachments,
+          };
+        }) || [];
+
+        return NextResponse.json({ tweets, oauth: true });
+
+      } catch (altError: any) {
+        console.error('Both username attempts failed:', altError);
+        return NextResponse.json({ 
+          tweets: [], 
+          error: 'No tweets found for either @BeatHammer or @beathammer',
+          debug: {
+            primaryError: twitterError.message || twitterError,
+            altError: altError.message || altError
+          }
+        });
+      }
     }
 
-    const tweetsData: TwitterResponse = await tweetsResponse.json();
-    const tweets = tweetsData.data?.map(tweet => {
-      // Find media attachments for this tweet
-      const mediaAttachments = tweet.attachments?.media_keys?.map(mediaKey => {
-        return tweetsData.includes?.media?.find(media => media.media_key === mediaKey);
-      }).filter(Boolean) || [];
-
-      return {
-        id: tweet.id,
-        text: tweet.text,
-        created_at: tweet.created_at,
-        author: '@BeatHammer',
-        media: mediaAttachments
-      };
-    }) || [];
-
-    return NextResponse.json({ tweets, oauth: true });
-
   } catch (error) {
-    console.error('Error fetching tweets with OAuth:', error);
+    console.error('Error fetching tweets with Twitter API v2:', error);
     return NextResponse.json({ tweets: [], error: 'Internal server error' });
   }
 }
