@@ -103,7 +103,7 @@ export async function GET() {
 
       return NextResponse.json({ tweets, oauth: true });
 
-    } catch (twitterError: any) {
+    } catch (twitterError: unknown) {
       console.error('Twitter API error:', twitterError);
       
       // Try alternative username (lowercase) if the first attempt fails
@@ -146,14 +146,14 @@ export async function GET() {
 
         return NextResponse.json({ tweets, oauth: true });
 
-      } catch (altError: any) {
+      } catch (altError: unknown) {
         console.error('Both username attempts failed:', altError);
         return NextResponse.json({ 
           tweets: [], 
           error: 'No tweets found for either @BeatHammer or @beathammer',
           debug: {
-            primaryError: twitterError.message || twitterError,
-            altError: altError.message || altError
+            primaryError: twitterError instanceof Error ? twitterError.message : String(twitterError),
+            altError: altError instanceof Error ? altError.message : String(altError)
           }
         });
       }

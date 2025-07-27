@@ -61,13 +61,13 @@ export async function GET() {
         timestamp: new Date().toISOString()
       });
 
-    } catch (twitterError: any) {
+    } catch (twitterError: unknown) {
       return NextResponse.json({
         status: 'error',
         hasCredentials: true,
         library: 'twitter-api-v2',
-        error: twitterError.message || twitterError,
-        errorCode: twitterError.code,
+        error: twitterError instanceof Error ? twitterError.message : String(twitterError),
+        errorCode: twitterError instanceof Error && 'code' in twitterError ? (twitterError as any).code : undefined,
         timestamp: new Date().toISOString()
       });
     }
